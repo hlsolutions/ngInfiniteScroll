@@ -36,9 +36,15 @@ mod.directive 'infiniteScroll', ['$rootScope', '$window', '$timeout', ($rootScop
     # Angular or jQuery element.
     if attrs.infiniteScrollContainer?
       scope.$watch attrs.infiniteScrollContainer, (value) ->
-        value = angular.element(value)
-        if value?
-          container = value
+        # Do not handle empty values
+        return unless value
+        newContainer = angular.element(value)
+        if newContainer
+          # Rebind container's scroll event.
+          container.off 'scroll', handler
+          container = newContainer
+          container.on 'scroll', handler
+          return # do not return anything
         else
           throw new Exception("invalid infinite-scroll-container attribute.")
 
@@ -46,8 +52,12 @@ mod.directive 'infiniteScroll', ['$rootScope', '$window', '$timeout', ($rootScop
     # container infinitely scrolled instead of the whole window.
     if attrs.infiniteScrollParent?
       container = elem.parent()
-      scope.$watch attrs.infiniteScrollParent, () ->
+      scope.$watch attrs.infiniteScrollParent, ->
+        # Rebind container's scroll event.
+        container.off 'scroll', handler
         container = elem.parent()
+        container.on 'scroll', handler
+        return # do not return anything
 
     # infinite-scroll specifies a function to call when the window,
     # or some other container specified by infinite-scroll-container,
@@ -55,15 +65,16 @@ mod.directive 'infiniteScroll', ['$rootScope', '$window', '$timeout', ($rootScop
     # document. It is recommended to use infinite-scroll-disabled
     # with a boolean that is set to true when the function is
     # called in order to throttle the function call.
-    handler = ->
+    checkShouldLoadMore = ->
+      containerHeight = container.height()
       if container == $window
-        containerBottom = container.height() + container.scrollTop()
+        containerBottom = containerHeight + container.scrollTop()
         elementBottom = elem.offset().top + elem.height()
       else
-        containerBottom = container.height()
+        containerBottom = containerHeight
         elementBottom = elem.offset().top - container.offset().top + elem.height()
       remaining = elementBottom - containerBottom
-      shouldScroll = remaining <= container.height() * scrollDistance
+      shouldScroll = remaining <= containerHeight * scrollDistance
 
       if shouldScroll && scrollEnabled
         if $rootScope.$$phase
@@ -73,15 +84,27 @@ mod.directive 'infiniteScroll', ['$rootScope', '$window', '$timeout', ($rootScop
       else if shouldScroll
         checkWhenEnabled = true
 
+    handler = ->
+      scope.hasScrolled = true
+
+    scope.$on 'verifyLoadMore', handler
     container.on 'scroll', handler
+    
     scope.$on '$destroy', ->
       container.off 'scroll', handler
+      clearInterval(checkInterval)
+    
+    checkInterval = setInterval ->
+      if scope.hasScrolled
+        scope.$apply ->
+          checkShouldLoadMore()
+          scope.hasScrolled = false
+    , 300
 
-    $timeout (->
+    timeoutFn = ->
       if attrs.infiniteScrollImmediateCheck
-        if scope.$eval(attrs.infiniteScrollImmediateCheck)
-          handler()
+        handler() if scope.$eval(attrs.infiniteScrollImmediateCheck)
       else
         handler()
-    ), 0
+    $timeout(timeoutFn, 0)
 ]

@@ -1,4 +1,4 @@
-/* ng-infinite-scroll - v1.0.0 - 2013-05-13 */
+/* ng-infinite-scroll - v1.0.0 - 2014-01-24 */
 var mod;
 
 mod = angular.module('infinite-scroll', []);
@@ -7,7 +7,7 @@ mod.directive('infiniteScroll', [
   '$rootScope', '$window', '$timeout', function($rootScope, $window, $timeout) {
     return {
       link: function(scope, elem, attrs) {
-        var checkWhenEnabled, container, handler, scrollDistance, scrollEnabled;
+        var checkInterval, checkShouldLoadMore, checkWhenEnabled, container, handler, scrollDistance, scrollEnabled, timeoutFn;
         $window = angular.element($window);
         scrollDistance = 0;
         if (attrs.infiniteScrollDistance != null) {
@@ -29,9 +29,15 @@ mod.directive('infiniteScroll', [
         container = $window;
         if (attrs.infiniteScrollContainer != null) {
           scope.$watch(attrs.infiniteScrollContainer, function(value) {
-            value = angular.element(value);
-            if (value != null) {
-              return container = value;
+            var newContainer;
+            if (!value) {
+              return;
+            }
+            newContainer = angular.element(value);
+            if (newContainer) {
+              container.off('scroll', handler);
+              container = newContainer;
+              container.on('scroll', handler);
             } else {
               throw new Exception("invalid infinite-scroll-container attribute.");
             }
@@ -40,20 +46,23 @@ mod.directive('infiniteScroll', [
         if (attrs.infiniteScrollParent != null) {
           container = elem.parent();
           scope.$watch(attrs.infiniteScrollParent, function() {
-            return container = elem.parent();
+            container.off('scroll', handler);
+            container = elem.parent();
+            container.on('scroll', handler);
           });
         }
-        handler = function() {
-          var containerBottom, elementBottom, remaining, shouldScroll;
+        checkShouldLoadMore = function() {
+          var containerBottom, containerHeight, elementBottom, remaining, shouldScroll;
+          containerHeight = container.height();
           if (container === $window) {
-            containerBottom = container.height() + container.scrollTop();
+            containerBottom = containerHeight + container.scrollTop();
             elementBottom = elem.offset().top + elem.height();
           } else {
-            containerBottom = container.height();
+            containerBottom = containerHeight;
             elementBottom = elem.offset().top - container.offset().top + elem.height();
           }
           remaining = elementBottom - containerBottom;
-          shouldScroll = remaining <= container.height() * scrollDistance;
+          shouldScroll = remaining <= containerHeight * scrollDistance;
           if (shouldScroll && scrollEnabled) {
             if ($rootScope.$$phase) {
               return scope.$eval(attrs.infiniteScroll);
@@ -64,11 +73,24 @@ mod.directive('infiniteScroll', [
             return checkWhenEnabled = true;
           }
         };
+        handler = function() {
+          return scope.hasScrolled = true;
+        };
+        scope.$on('verifyLoadMore', handler);
         container.on('scroll', handler);
         scope.$on('$destroy', function() {
-          return container.off('scroll', handler);
+          container.off('scroll', handler);
+          return clearInterval(checkInterval);
         });
-        return $timeout((function() {
+        checkInterval = setInterval(function() {
+          if (scope.hasScrolled) {
+            return scope.$apply(function() {
+              checkShouldLoadMore();
+              return scope.hasScrolled = false;
+            });
+          }
+        }, 300);
+        timeoutFn = function() {
           if (attrs.infiniteScrollImmediateCheck) {
             if (scope.$eval(attrs.infiniteScrollImmediateCheck)) {
               return handler();
@@ -76,7 +98,8 @@ mod.directive('infiniteScroll', [
           } else {
             return handler();
           }
-        }), 0);
+        };
+        return $timeout(timeoutFn, 0);
       }
     };
   }
