@@ -23,7 +23,7 @@ The [download page](http://binarymuse.github.com/ngInfiniteScroll/#download) all
 Getting Started
 ---------------
 
- * Download ngInfiniteScroll from [the download page on the ngInfiniteScroll web site](http://binarymuse.github.com/ngInfiniteScroll/#download) or install it with [Bower](http://bower.io/) via `bower install ngInfiniteScroll`
+ * Download ngInfiniteScroll from [the download page on the ngInfiniteScroll web site](http://binarymuse.github.com/ngInfiniteScroll/#download)
  * Include the script tag on your page after the AngularJS and jQuery script tags (ngInfiniteScroll requires jQuery to run)
 
         <script type='text/javascript' src='path/to/jquery.min.js'></script>
@@ -44,11 +44,6 @@ Detailed Documentation
 ----------------------
 
 ngInfiniteScroll accepts several attributes to customize the behavior of the directive; detailed instructions can be found [on the ngInfiniteScroll web site](http://binarymuse.github.com/ngInfiniteScroll/documentation.html).
-
-Ports
------
-
-If you use [AngularDart](https://github.com/angular/angular.dart), Juha Komulainen has [a port of the project](http://pub.dartlang.org/packages/ng_infinite_scroll) you can use.
 
 License
 -------
